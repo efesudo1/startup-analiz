@@ -1,0 +1,958 @@
+<!DOCTYPE html>
+<html lang="tr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Startup Program Analiz Asistanı</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <!-- Türkçe karakterler için ASCII dönüşümü kullanılıyor (jsPDF font sınırlaması) -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        'inter': ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        primary: {
+                            50: '#eef2ff',
+                            100: '#e0e7ff',
+                            200: '#c7d2fe',
+                            300: '#a5b4fc',
+                            400: '#818cf8',
+                            500: '#6366f1',
+                            600: '#4f46e5',
+                            700: '#4338ca',
+                            800: '#3730a3',
+                            900: '#312e81',
+                        },
+                        accent: {
+                            400: '#34d399',
+                            500: '#10b981',
+                            600: '#059669',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        * {
+            font-family: 'Inter', sans-serif;
+        }
+
+        .gradient-bg {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        .glass-effect {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .card-shadow {
+            box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.1),
+                0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+
+        .btn-gradient {
+            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+            transition: all 0.3s ease;
+        }
+
+        .btn-gradient:hover {
+            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px -5px rgba(99, 102, 241, 0.4);
+        }
+
+        .step-indicator {
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .step-indicator.active {
+            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+            color: white;
+            transform: scale(1.1);
+        }
+
+        .step-indicator.completed {
+            background: linear-gradient(135deg, #10b981 0%, #34d399 100%);
+            color: white;
+        }
+
+        .fade-in {
+            animation: fadeIn 0.5s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .slide-in {
+            animation: slideIn 0.4s ease-out;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateX(30px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .pulse-ring {
+            animation: pulse-ring 1.5s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+        }
+
+        @keyframes pulse-ring {
+            0% {
+                transform: scale(0.33);
+            }
+
+            40%,
+            80% {
+                opacity: 0;
+            }
+
+            100% {
+                opacity: 0;
+            }
+        }
+
+        .progress-bar {
+            transition: width 0.5s ease-out;
+        }
+
+        textarea:focus,
+        input:focus {
+            outline: none;
+            border-color: #6366f1;
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+        }
+
+        .table-row:hover {
+            background-color: #f8fafc;
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+    </style>
+</head>
+
+<body class="bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 min-h-screen">
+
+    <!-- Header -->
+    <header class="gradient-bg text-white py-6 px-8 shadow-lg">
+        <div class="max-w-7xl mx-auto flex items-center justify-between">
+            <div class="flex items-center gap-4">
+                <div class="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm">
+                    <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                </div>
+                <div>
+                    <h1 class="text-2xl font-bold tracking-tight">Startup Program Analiz Asistanı</h1>
+                    <p class="text-white/80 text-sm">Girişimcilik programlarını sistematik olarak inceleyin</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-3">
+                <div id="programCount" class="bg-white/20 px-4 py-2 rounded-lg backdrop-blur-sm">
+                    <span class="text-sm font-medium">Kayıtlı Program: <span id="countNumber"
+                            class="font-bold">0</span></span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="max-w-7xl mx-auto px-8 py-10">
+
+        <!-- Dashboard View -->
+        <div id="dashboardView">
+            <!-- Quick Actions -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+                <button onclick="startNewReview()"
+                    class="btn-gradient text-white p-6 rounded-2xl card-shadow flex items-center gap-4 group">
+                    <div
+                        class="w-14 h-14 bg-white/20 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform">
+                        <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                        </svg>
+                    </div>
+                    <div class="text-left">
+                        <span class="block text-lg font-semibold">Yeni Program İncelemesi</span>
+                        <span class="block text-sm text-white/80">Başlat</span>
+                    </div>
+                </button>
+
+                <button onclick="exportAllExcel()"
+                    class="glass-effect p-6 rounded-2xl card-shadow flex items-center gap-4 group hover:bg-emerald-50 transition-all">
+                    <div
+                        class="w-14 h-14 bg-emerald-100 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform">
+                        <svg class="w-7 h-7 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                    </div>
+                    <div class="text-left">
+                        <span class="block text-lg font-semibold text-slate-800">Excel Olarak İndir</span>
+                        <span class="block text-sm text-slate-500">Tüm Liste</span>
+                    </div>
+                </button>
+
+                <button onclick="clearAllData()"
+                    class="glass-effect p-6 rounded-2xl card-shadow flex items-center gap-4 group hover:bg-red-50 transition-all">
+                    <div
+                        class="w-14 h-14 bg-red-100 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform">
+                        <svg class="w-7 h-7 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                    </div>
+                    <div class="text-left">
+                        <span class="block text-lg font-semibold text-slate-800">Tüm Verileri Sil</span>
+                        <span class="block text-sm text-slate-500">Sıfırla</span>
+                    </div>
+                </button>
+            </div>
+
+            <!-- Programs Table -->
+            <div class="glass-effect rounded-2xl card-shadow overflow-hidden">
+                <div class="p-6 border-b border-slate-200">
+                    <h2 class="text-xl font-bold text-slate-800">İncelenen Programlar</h2>
+                    <p class="text-slate-500 text-sm mt-1">Daha önce analiz ettiğiniz tüm programlar</p>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full">
+                        <thead class="bg-slate-50">
+                            <tr>
+                                <th
+                                    class="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                                    #</th>
+                                <th
+                                    class="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                                    Program Adı</th>
+                                <th
+                                    class="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                                    Ülke</th>
+                                <th
+                                    class="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                                    Tarih</th>
+                                <th
+                                    class="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                                    İşlemler</th>
+                            </tr>
+                        </thead>
+                        <tbody id="programsTableBody" class="divide-y divide-slate-100">
+                            <!-- Dynamic content -->
+                        </tbody>
+                    </table>
+                </div>
+                <div id="emptyState" class="hidden p-12 text-center">
+                    <div class="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <svg class="w-10 h-10 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                    </div>
+                    <h3 class="text-lg font-semibold text-slate-700 mb-2">Henüz program eklenmedi</h3>
+                    <p class="text-slate-500 mb-6">Yeni bir program incelemesi başlatarak analiz yapmaya başlayın.</p>
+                    <button onclick="startNewReview()"
+                        class="btn-gradient text-white px-6 py-3 rounded-xl font-medium inline-flex items-center gap-2">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                        </svg>
+                        İlk Programı Ekle
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Review Form View -->
+        <div id="reviewFormView" class="hidden">
+            <div class="glass-effect rounded-2xl card-shadow overflow-hidden">
+                <!-- Progress Header -->
+                <div class="p-6 border-b border-slate-200 bg-gradient-to-r from-slate-50 to-indigo-50">
+                    <div class="flex items-center justify-between mb-4">
+                        <button onclick="cancelReview()"
+                            class="text-slate-500 hover:text-slate-700 flex items-center gap-2 transition-colors">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                            </svg>
+                            <span class="font-medium">İptal</span>
+                        </button>
+                        <div class="text-sm text-slate-600 font-medium">
+                            Soru <span id="currentStepNumber" class="text-indigo-600 font-bold">1</span> / <span
+                                class="text-slate-400">15</span>
+                        </div>
+                    </div>
+                    <div class="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
+                        <div id="progressBar"
+                            class="progress-bar h-full bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full"
+                            style="width: 6.67%"></div>
+                    </div>
+                </div>
+
+                <!-- Question Area -->
+                <div class="p-8">
+                    <div id="questionContainer" class="slide-in">
+                        <h3 id="questionTitle" class="text-2xl font-bold text-slate-800 mb-6"></h3>
+                        <textarea id="answerInput"
+                            class="w-full h-40 p-4 border-2 border-slate-200 rounded-xl text-slate-700 resize-none transition-all"
+                            placeholder="Cevabınızı yazın..."></textarea>
+                    </div>
+                </div>
+
+                <!-- Navigation Buttons -->
+                <div class="p-6 border-t border-slate-200 bg-slate-50 flex justify-between">
+                    <button id="prevBtn" onclick="prevStep()"
+                        class="px-6 py-3 bg-white border-2 border-slate-200 text-slate-700 rounded-xl font-medium hover:bg-slate-50 transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+                        </svg>
+                        Önceki
+                    </button>
+                    <button id="nextBtn" onclick="nextStep()"
+                        class="btn-gradient px-8 py-3 text-white rounded-xl font-medium flex items-center gap-2">
+                        <span id="nextBtnText">Sonraki</span>
+                        <svg id="nextBtnIcon" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Program Detail View -->
+        <div id="programDetailView" class="hidden">
+            <div class="glass-effect rounded-2xl card-shadow overflow-hidden fade-in">
+                <div class="p-6 border-b border-slate-200 flex items-center justify-between">
+                    <button onclick="backToDashboard()"
+                        class="text-slate-500 hover:text-slate-700 flex items-center gap-2 transition-colors">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                        </svg>
+                        <span class="font-medium">Geri Dön</span>
+                    </button>
+                    <div class="flex gap-3">
+                        <button onclick="exportCurrentPDF()"
+                            class="px-5 py-2.5 bg-red-500 hover:bg-red-600 text-white rounded-xl font-medium flex items-center gap-2 transition-all">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                            </svg>
+                            PDF Olarak İndir
+                        </button>
+                        <button onclick="deleteProgram()"
+                            class="px-5 py-2.5 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-xl font-medium flex items-center gap-2 transition-all">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                            Sil
+                        </button>
+                    </div>
+                </div>
+                <div id="programDetailContent" class="p-8">
+                    <!-- Dynamic content -->
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="text-center py-6 text-slate-500 text-sm">
+        <p>© 2024 Startup Program Analiz Asistanı. Tüm hakları saklıdır.</p>
+    </footer>
+
+    <script>
+        // Questions Data
+        const questions = [
+            "Programın Adı Nedir?",
+            "Hangi Ülkede Düzenlenmektedir?",
+            "Programın Amacı/Misyonu/Vizyonu nedir?",
+            "Programın içeriği nedir? (Hızlandırma programı,fuar,eğitim, yatırım görüşmeleri vb.)",
+            "Program İçerisinde Ücretsiz İçerik (Blog,dergi,makale,kitap özeti vb.) Var Mı?",
+            "Programa katılan girişimcileri görebiliyor muyuz?",
+            "Program İçerisinde Ücretsiz Sosyal Medya İçerikleri (youtube,instagram) var mı?",
+            "Program İçerisinde Ücretsiz Eğitimler Var Mı?",
+            "Programa ait (varsa) panel konuşmaları internette var mı (youtube vb kanallar)",
+            "Programa Katılmadan Bu Ücretsiz Destekleri Alabiliyor Muyuz?",
+            "Programa Katılım Şartları Nelerdir?",
+            "Programın Sponsorları İçinde Türkiye'de Faaliyet Gösteren/Gösterebilecek Kuruluş Var Mı?",
+            "Programın sponsorları içinde kuluçka merkezi veya GSYF var mı Varsa hangileri?",
+            "Programdan Öğrenebileceğimiz Bilgi/Uygulama/Program İçeriği vb. Var Mı?",
+            "Programın tüm bu hizmetleri aktif mi ve bizim için faydalı mı?"
+        ];
+
+        // State
+        let currentStep = 0;
+        let currentAnswers = [];
+        let programs = [];
+        let currentViewingProgram = null;
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function () {
+            loadFromStorage();
+            renderProgramsTable();
+            updateProgramCount();
+        });
+
+        // Storage Functions
+        function loadFromStorage() {
+            const stored = localStorage.getItem('startupPrograms');
+            if (stored) {
+                programs = JSON.parse(stored);
+            }
+        }
+
+        function saveToStorage() {
+            localStorage.setItem('startupPrograms', JSON.stringify(programs));
+        }
+
+        // Navigation Functions
+        function startNewReview() {
+            currentStep = 0;
+            currentAnswers = new Array(questions.length).fill('');
+            showView('reviewFormView');
+            renderQuestion();
+        }
+
+        function cancelReview() {
+            if (confirm('İncelemeyi iptal etmek istediğinize emin misiniz? Girilen veriler kaybolacaktır.')) {
+                showView('dashboardView');
+            }
+        }
+
+        function backToDashboard() {
+            currentViewingProgram = null;
+            showView('dashboardView');
+        }
+
+        function showView(viewId) {
+            document.getElementById('dashboardView').classList.add('hidden');
+            document.getElementById('reviewFormView').classList.add('hidden');
+            document.getElementById('programDetailView').classList.add('hidden');
+            document.getElementById(viewId).classList.remove('hidden');
+        }
+
+        // Question Navigation
+        function renderQuestion() {
+            document.getElementById('questionTitle').textContent = `${currentStep + 1}. ${questions[currentStep]}`;
+            document.getElementById('answerInput').value = currentAnswers[currentStep] || '';
+            document.getElementById('currentStepNumber').textContent = currentStep + 1;
+
+            const progress = ((currentStep + 1) / questions.length) * 100;
+            document.getElementById('progressBar').style.width = `${progress}%`;
+
+            document.getElementById('prevBtn').disabled = currentStep === 0;
+            document.getElementById('prevBtn').classList.toggle('opacity-50', currentStep === 0);
+
+            if (currentStep === questions.length - 1) {
+                document.getElementById('nextBtnText').textContent = 'Tamamla';
+                document.getElementById('nextBtnIcon').innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>';
+            } else {
+                document.getElementById('nextBtnText').textContent = 'Sonraki';
+                document.getElementById('nextBtnIcon').innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>';
+            }
+
+            // Animation
+            const container = document.getElementById('questionContainer');
+            container.classList.remove('slide-in');
+            void container.offsetWidth;
+            container.classList.add('slide-in');
+
+            document.getElementById('answerInput').focus();
+        }
+
+        function saveCurrentAnswer() {
+            currentAnswers[currentStep] = document.getElementById('answerInput').value;
+        }
+
+        function nextStep() {
+            saveCurrentAnswer();
+
+            if (currentStep < questions.length - 1) {
+                currentStep++;
+                renderQuestion();
+            } else {
+                // Complete the review
+                completeReview();
+            }
+        }
+
+        function prevStep() {
+            if (currentStep > 0) {
+                saveCurrentAnswer();
+                currentStep--;
+                renderQuestion();
+            }
+        }
+
+        function completeReview() {
+            const programName = currentAnswers[0] || 'İsimsiz Program';
+            const newProgram = {
+                id: Date.now(),
+                name: programName,
+                country: currentAnswers[1] || '-',
+                date: new Date().toLocaleDateString('tr-TR'),
+                answers: [...currentAnswers]
+            };
+
+            programs.push(newProgram);
+            saveToStorage();
+            renderProgramsTable();
+            updateProgramCount();
+            showView('dashboardView');
+
+            // Show success message
+            showToast('Program başarıyla kaydedildi!', 'success');
+        }
+
+        // Table Rendering
+        function renderProgramsTable() {
+            const tbody = document.getElementById('programsTableBody');
+            const emptyState = document.getElementById('emptyState');
+
+            if (programs.length === 0) {
+                tbody.innerHTML = '';
+                emptyState.classList.remove('hidden');
+                return;
+            }
+
+            emptyState.classList.add('hidden');
+
+            tbody.innerHTML = programs.map((program, index) => `
+                <tr class="table-row transition-colors cursor-pointer" onclick="viewProgram(${program.id})">
+                    <td class="px-6 py-4 text-sm text-slate-500 font-medium">${index + 1}</td>
+                    <td class="px-6 py-4">
+                        <div class="text-sm font-semibold text-slate-800">${escapeHtml(program.name)}</div>
+                    </td>
+                    <td class="px-6 py-4">
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800">
+                            ${escapeHtml(program.country)}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 text-sm text-slate-500">${program.date}</td>
+                    <td class="px-6 py-4">
+                        <div class="flex items-center gap-2">
+                            <button onclick="event.stopPropagation(); viewProgram(${program.id})" class="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors" title="Görüntüle">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                                </svg>
+                            </button>
+                            <button onclick="event.stopPropagation(); exportSinglePDF(${program.id})" class="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="PDF İndir">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/>
+                                </svg>
+                            </button>
+                            <button onclick="event.stopPropagation(); deleteProgramById(${program.id})" class="p-2 text-slate-500 hover:bg-slate-100 rounded-lg transition-colors" title="Sil">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                                </svg>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function updateProgramCount() {
+            document.getElementById('countNumber').textContent = programs.length;
+        }
+
+        // View Program Detail
+        function viewProgram(id) {
+            const program = programs.find(p => p.id === id);
+            if (!program) return;
+
+            currentViewingProgram = program;
+
+            const content = document.getElementById('programDetailContent');
+            content.innerHTML = `
+                <div class="mb-8">
+                    <h2 class="text-3xl font-bold text-slate-800 mb-2">${escapeHtml(program.name)}</h2>
+                    <div class="flex items-center gap-4 text-sm text-slate-500">
+                        <span class="flex items-center gap-1">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
+                            </svg>
+                            ${escapeHtml(program.country)}
+                        </span>
+                        <span class="flex items-center gap-1">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                            </svg>
+                            ${program.date}
+                        </span>
+                    </div>
+                </div>
+                
+                <div class="space-y-6">
+                    ${questions.map((q, i) => `
+                        <div class="p-5 bg-slate-50 rounded-xl border border-slate-100">
+                            <h4 class="font-semibold text-slate-700 mb-2">${i + 1}. ${escapeHtml(q)}</h4>
+                            <p class="text-slate-600 whitespace-pre-wrap">${escapeHtml(program.answers[i]) || '<span class="text-slate-400 italic">Cevap verilmedi</span>'}</p>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+
+            showView('programDetailView');
+        }
+
+        function deleteProgram() {
+            if (!currentViewingProgram) return;
+            deleteProgramById(currentViewingProgram.id);
+        }
+
+        function deleteProgramById(id) {
+            if (!confirm('Bu programı silmek istediğinize emin misiniz?')) return;
+
+            programs = programs.filter(p => p.id !== id);
+            saveToStorage();
+            renderProgramsTable();
+            updateProgramCount();
+
+            if (currentViewingProgram && currentViewingProgram.id === id) {
+                showView('dashboardView');
+            }
+
+            showToast('Program silindi.', 'info');
+        }
+
+        function clearAllData() {
+            if (!confirm('TÜM verileri silmek istediğinize emin misiniz? Bu işlem geri alınamaz!')) return;
+
+            programs = [];
+            saveToStorage();
+            renderProgramsTable();
+            updateProgramCount();
+            showToast('Tüm veriler silindi.', 'info');
+        }
+
+        // Export Functions
+        function exportCurrentPDF() {
+            if (!currentViewingProgram) return;
+            exportSinglePDF(currentViewingProgram.id);
+        }
+
+        // Türkçe karakter dönüşüm fonksiyonu (PDF için - jsPDF Helvetica font desteği yok)
+        function turkishToAscii(text) {
+            if (!text) return '';
+            const charMap = {
+                'ğ': 'g', 'Ğ': 'G',
+                'ü': 'u', 'Ü': 'U',
+                'ş': 's', 'Ş': 'S',
+                'ı': 'i', 'İ': 'I',
+                'ö': 'o', 'Ö': 'O',
+                'ç': 'c', 'Ç': 'C'
+            };
+            return text.replace(/[ğĞüÜşŞıİöÖçÇ]/g, char => charMap[char] || char);
+        }
+
+        // Cevap metnini düzeltme fonksiyonu (cümle başı büyük harf)
+        function fixTextCapitalization(text) {
+            if (!text) return '';
+            // Cümle başlarını büyük harf yap
+            let result = text.trim();
+            if (result.length > 0) {
+                result = result.charAt(0).toUpperCase() + result.slice(1);
+            }
+            // Nokta, soru işareti ve ünlem sonrası büyük harf
+            result = result.replace(/([.?!]\s*)([a-zğüşıöç])/gi, (match, p1, p2) => {
+                return p1 + p2.toUpperCase();
+            });
+            return result;
+        }
+
+        function exportSinglePDF(id) {
+            const program = programs.find(p => p.id === id);
+            if (!program) return;
+
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF('p', 'mm', 'a4');
+
+            const pageWidth = 210;
+            const pageHeight = 297;
+            const margin = 15;
+            const contentWidth = pageWidth - (margin * 2);
+            const maxY = pageHeight - 20;
+
+            // Program bilgilerini hazırla
+            const programName = turkishToAscii(program.name);
+            const programCountry = turkishToAscii(program.country);
+
+            // Tek renk - Indigo
+            const mainColor = [79, 70, 229];
+            const darkText = [30, 41, 59];
+            const grayText = [100, 116, 139];
+            const lightGray = [148, 163, 184];
+            const bgColor = [248, 250, 252];
+
+            // Sayfa başlığı
+            function drawPageHeader(isFirstPage = false) {
+                if (isFirstPage) {
+                    doc.setFillColor(...mainColor);
+                    doc.rect(0, 0, pageWidth, 35, 'F');
+
+                    doc.setTextColor(255, 255, 255);
+                    doc.setFontSize(16);
+                    doc.setFont('helvetica', 'bold');
+                    doc.text('Startup Program Analiz Raporu', margin, 15);
+
+                    doc.setFontSize(9);
+                    doc.setFont('helvetica', 'normal');
+                    doc.text(`Tarih: ${new Date().toLocaleDateString('tr-TR')}`, margin, 23);
+
+                    doc.setFillColor(255, 255, 255);
+                    doc.rect(margin, 28, contentWidth, 12, 'F');
+
+                    doc.setTextColor(...mainColor);
+                    doc.setFontSize(10);
+                    doc.setFont('helvetica', 'bold');
+                    const nameText = programName.length > 40 ? programName.substring(0, 40) + '...' : programName;
+                    doc.text(nameText, margin + 4, 35);
+
+                    doc.setTextColor(...grayText);
+                    doc.setFontSize(9);
+                    doc.setFont('helvetica', 'normal');
+                    doc.text(`Ulke: ${programCountry}`, margin + 4 + doc.getTextWidth(nameText) + 8, 35);
+
+                    return 48;
+                } else {
+                    doc.setFillColor(...mainColor);
+                    doc.rect(0, 0, pageWidth, 15, 'F');
+
+                    doc.setTextColor(255, 255, 255);
+                    doc.setFontSize(9);
+                    doc.setFont('helvetica', 'bold');
+                    const headerName = programName.length > 30 ? programName.substring(0, 30) + '...' : programName;
+                    doc.text(`${headerName} - Analiz Raporu (devam)`, margin, 10);
+
+                    return 22;
+                }
+            }
+
+            function drawPageFooter(pageNum, totalPages) {
+                doc.setDrawColor(...lightGray);
+                doc.setLineWidth(0.3);
+                doc.line(margin, pageHeight - 12, pageWidth - margin, pageHeight - 12);
+
+                doc.setFontSize(8);
+                doc.setTextColor(...lightGray);
+                doc.text(`Sayfa ${pageNum} / ${totalPages}`, pageWidth / 2, pageHeight - 7, { align: 'center' });
+            }
+
+            let yPos = drawPageHeader(true);
+
+            // Her soru-cevap için
+            questions.forEach((question, index) => {
+                const rawAnswer = program.answers[index] || 'Cevap verilmedi';
+                const questionText = turkishToAscii(question);
+                const answerText = turkishToAscii(fixTextCapitalization(rawAnswer));
+
+                doc.setFontSize(9);
+                doc.setFont('helvetica', 'bold');
+                const questionLines = doc.splitTextToSize(questionText, contentWidth - 18);
+
+                doc.setFontSize(9);
+                doc.setFont('helvetica', 'normal');
+                const answerLines = doc.splitTextToSize(answerText, contentWidth - 14);
+
+                const lineHeight = 4;
+                const questionHeight = questionLines.length * lineHeight;
+                const answerHeight = answerLines.length * lineHeight;
+                const blockHeight = questionHeight + answerHeight + 14;
+
+                if (yPos + blockHeight > maxY) {
+                    doc.addPage();
+                    yPos = drawPageHeader(false);
+                }
+
+                // Kart
+                doc.setFillColor(...bgColor);
+                doc.setDrawColor(226, 232, 240);
+                doc.roundedRect(margin, yPos, contentWidth, blockHeight, 2, 2, 'FD');
+
+                // Sol kenar çizgisi (tek renk)
+                doc.setFillColor(...mainColor);
+                doc.rect(margin, yPos, 3, blockHeight, 'F');
+
+                // Soru numarası
+                doc.setTextColor(...mainColor);
+                doc.setFontSize(9);
+                doc.setFont('helvetica', 'bold');
+                doc.text(`${index + 1}.`, margin + 6, yPos + 6);
+
+                // Soru metni
+                doc.setTextColor(...darkText);
+                doc.text(questionLines, margin + 14, yPos + 6);
+
+                // Cevap metni
+                const answerStartY = yPos + questionHeight + 9;
+                doc.setTextColor(...grayText);
+                doc.setFont('helvetica', 'normal');
+                doc.text(answerLines, margin + 6, answerStartY);
+
+                yPos += blockHeight + 4;
+            });
+
+            // Footer
+            const totalPages = doc.getNumberOfPages();
+            for (let i = 1; i <= totalPages; i++) {
+                doc.setPage(i);
+                drawPageFooter(i, totalPages);
+            }
+
+            const safeFileName = turkishToAscii(program.name).replace(/[^a-zA-Z0-9 ]/g, '').replace(/\s+/g, '_') || 'Program';
+            doc.save(`${safeFileName}_Analiz.pdf`);
+            showToast('PDF basariyla indirildi!', 'success');
+        }
+
+        function exportAllExcel() {
+            if (programs.length === 0) {
+                showToast('Indirilecek program bulunamadi!', 'error');
+                return;
+            }
+
+            // Prepare data with Turkish character support
+            const headers = ['#', 'Program Adi', 'Ulke', 'Inceleme Tarihi', ...questions.map(q => turkishToAscii(q))];
+
+            const data = programs.map((program, index) => [
+                index + 1,
+                program.name,
+                program.country,
+                program.date,
+                ...program.answers
+            ]);
+
+            // Create workbook with UTF-8 support
+            const wb = XLSX.utils.book_new();
+            wb.Props = {
+                Title: "Startup Program Analizi",
+                Author: "Startup Program Analiz Asistani",
+                CreatedDate: new Date()
+            };
+
+            const ws = XLSX.utils.aoa_to_sheet([headers, ...data]);
+
+            // Set column widths
+            const colWidths = [
+                { wch: 5 },   // #
+                { wch: 35 },  // Program Adi
+                { wch: 20 },  // Ulke
+                { wch: 15 },  // Tarih
+                ...questions.map(() => ({ wch: 50 }))
+            ];
+            ws['!cols'] = colWidths;
+
+            // Enable text wrapping for better readability
+            const range = XLSX.utils.decode_range(ws['!ref']);
+            for (let R = range.s.r; R <= range.e.r; ++R) {
+                for (let C = range.s.c; C <= range.e.c; ++C) {
+                    const cellRef = XLSX.utils.encode_cell({ r: R, c: C });
+                    if (!ws[cellRef]) continue;
+                    if (!ws[cellRef].s) ws[cellRef].s = {};
+                    ws[cellRef].s.alignment = { wrapText: true, vertical: 'top' };
+                }
+            }
+
+            XLSX.utils.book_append_sheet(wb, ws, 'Programlar');
+
+            // Download with UTF-8 encoding
+            XLSX.writeFile(wb, `Startup_Programlari_${new Date().toLocaleDateString('tr-TR').replace(/\./g, '-')}.xlsx`, {
+                bookType: 'xlsx',
+                type: 'binary'
+            });
+            showToast('Excel dosyasi basariyla indirildi!', 'success');
+        }
+
+        // Utility Functions
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function showToast(message, type = 'info') {
+            const toast = document.createElement('div');
+            const bgColor = type === 'success' ? 'bg-emerald-500' : type === 'error' ? 'bg-red-500' : 'bg-slate-700';
+
+            toast.className = `fixed bottom-6 right-6 ${bgColor} text-white px-6 py-3 rounded-xl shadow-lg flex items-center gap-3 z-50 fade-in`;
+            toast.innerHTML = `
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    ${type === 'success'
+                    ? '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>'
+                    : type === 'error'
+                        ? '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>'
+                        : '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>'}
+                </svg>
+                <span class="font-medium">${message}</span>
+            `;
+
+            document.body.appendChild(toast);
+
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transform = 'translateY(10px)';
+                toast.style.transition = 'all 0.3s ease';
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        // Keyboard Navigation
+        document.addEventListener('keydown', function (e) {
+            if (document.getElementById('reviewFormView').classList.contains('hidden')) return;
+
+            if (e.key === 'Enter' && e.ctrlKey) {
+                nextStep();
+            }
+        });
+    </script>
+</body>
+
+</html>
