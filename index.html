@@ -9,6 +9,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <!-- Türkçe karakterler için ASCII dönüşümü kullanılıyor (jsPDF font sınırlaması) -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
         rel="stylesheet">
@@ -287,7 +288,10 @@
         <!-- Dashboard View -->
         <div id="dashboardView">
             <!-- Quick Actions -->
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+            <!-- Hidden PDF input -->
+            <input type="file" id="pdfImportInput" accept=".pdf" onchange="handlePdfImport(event)" style="display:none">
+
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-10">
                 <button onclick="startNewReview()"
                     class="btn-gradient text-white p-6 rounded-2xl card-shadow flex items-center gap-4 group">
                     <div
@@ -299,6 +303,21 @@
                     <div class="text-left">
                         <span class="block text-lg font-semibold">Yeni Program İncelemesi</span>
                         <span class="block text-sm text-white/80">Başlat</span>
+                    </div>
+                </button>
+
+                <button onclick="triggerPdfImport()"
+                    class="glass-effect p-6 rounded-2xl card-shadow flex items-center gap-4 group hover:bg-amber-50 transition-all">
+                    <div
+                        class="w-14 h-14 bg-amber-100 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform">
+                        <svg class="w-7 h-7 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                        </svg>
+                    </div>
+                    <div class="text-left">
+                        <span class="block text-lg font-semibold text-slate-800">PDF'den Yükle</span>
+                        <span class="block text-sm text-slate-500">İçe Aktar</span>
                     </div>
                 </button>
 
@@ -1383,6 +1402,198 @@
                 toast.style.transition = 'all 0.3s ease';
                 setTimeout(() => toast.remove(), 300);
             }, 3000);
+        }
+
+        // PDF Import Functions
+        function triggerPdfImport() {
+            document.getElementById('pdfImportInput').click();
+        }
+
+        async function handlePdfImport(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            if (!file.name.toLowerCase().endsWith('.pdf')) {
+                showToast('Lütfen bir PDF dosyası seçin!', 'error');
+                return;
+            }
+
+            showToast('PDF okunuyor...', 'info');
+
+            try {
+                // Set pdf.js worker
+                pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+                const arrayBuffer = await file.arrayBuffer();
+                const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+
+                // Extract text from all pages
+                let fullText = '';
+                for (let i = 1; i <= pdf.numPages; i++) {
+                    const page = await pdf.getPage(i);
+                    const textContent = await page.getTextContent();
+                    const pageText = textContent.items.map(item => item.str).join(' ');
+                    fullText += pageText + '\n';
+                }
+
+                // Parse the extracted text
+                const programData = parsePdfText(fullText);
+
+                if (!programData) {
+                    showToast('PDF içeriği tanınamadı! Bu uygulamadan dışa aktarılmış bir PDF yükleyin.', 'error');
+                    event.target.value = '';
+                    return;
+                }
+
+                // Add to programs
+                const newProgram = {
+                    id: Date.now(),
+                    name: programData.name,
+                    country: programData.country,
+                    date: new Date().toLocaleDateString('tr-TR'),
+                    answers: programData.answers
+                };
+
+                programs.push(newProgram);
+                saveToStorage();
+                renderProgramsTable();
+                updateProgramCount();
+
+                showToast(`"${programData.name}" programı başarıyla içe aktarıldı!`, 'success');
+            } catch (err) {
+                console.error('PDF import error:', err);
+                showToast('PDF okunurken bir hata oluştu!', 'error');
+            }
+
+            // Reset file input
+            event.target.value = '';
+        }
+
+        function parsePdfText(fullText) {
+            // Clean up extra whitespace
+            const text = fullText.replace(/\s+/g, ' ').trim();
+
+            // The PDF has numbered questions: 1. ... 2. ... up to 15.
+            // We use these as delimiters to extract answers
+            // The exported PDF questions are in turkishToAscii format
+            const asciiQuestions = questions.map(q => turkishToAscii(q));
+
+            // Try to find the program name from the header area
+            // The PDF header format: "Startup Program Analiz Raporu Tarih: DD.MM.YYYY [ProgramName] Ulke: [Country]"
+            let programName = 'PDF\'den Yuklenen Program';
+            let country = '-';
+
+            // Extract name: text between the date and "Ulke:" 
+            const headerMatch = text.match(/Tarih:\s*[\d.]+\s+(.*?)\s*Ulke:\s*(.*?)\s*1\./i);
+            if (headerMatch) {
+                programName = headerMatch[1].trim();
+                country = headerMatch[2].trim();
+            } else {
+                // Alternative: try to get name before "Ulke:"
+                const altMatch = text.match(/Raporu\s+Tarih:.*?([A-Z].*?)\s+Ulke:\s*(\S+)/i);
+                if (altMatch) {
+                    programName = altMatch[1].trim();
+                    country = altMatch[2].trim();
+                }
+            }
+
+            // Extract answers by finding text between numbered questions
+            const answers = new Array(questions.length).fill('');
+
+            for (let i = 0; i < questions.length; i++) {
+                const qNum = i + 1;
+                const nextQNum = i + 2;
+
+                // Build regex: from "N." + question text to either "(N+1)." or end
+                let startPattern;
+                let endPattern;
+
+                // Match the question number pattern
+                startPattern = new RegExp(qNum + '\\.' + '\\s*');
+
+                if (i < questions.length - 1) {
+                    endPattern = new RegExp('\\s+' + nextQNum + '\\.' + '\\s*');
+                }
+
+                let startIdx = -1;
+                const startMatch = text.match(startPattern);
+                if (startMatch) {
+                    startIdx = startMatch.index + startMatch[0].length;
+                }
+
+                if (startIdx === -1) continue;
+
+                let endIdx = text.length;
+                if (endPattern) {
+                    // Search for next question number after startIdx
+                    const remaining = text.substring(startIdx);
+                    const endMatch = remaining.match(endPattern);
+                    if (endMatch) {
+                        endIdx = startIdx + endMatch.index;
+                    }
+                } else {
+                    // Last question - go to end, but stop at page footer patterns
+                    const remaining = text.substring(startIdx);
+                    const footerMatch = remaining.match(/\s*Sayfa\s+\d+/i);
+                    if (footerMatch) {
+                        endIdx = startIdx + footerMatch.index;
+                    }
+                }
+
+                let answerText = text.substring(startIdx, endIdx).trim();
+
+                // Remove the question text itself from the beginning of the answer
+                const asciiQ = asciiQuestions[i];
+                if (answerText.startsWith(asciiQ)) {
+                    answerText = answerText.substring(asciiQ.length).trim();
+                } else {
+                    // Try partial match - question text might be split
+                    const qWords = asciiQ.split(/\s+/);
+                    // Find where the question text ends and the answer begins
+                    // Look for a reasonable boundary by checking first few words
+                    const shortQ = qWords.slice(0, Math.min(5, qWords.length)).join(' ');
+                    const qEndIdx = answerText.indexOf(shortQ);
+                    if (qEndIdx !== -1) {
+                        // Find the end of the question by looking for the last word of the full question
+                        const lastQWord = qWords[qWords.length - 1];
+                        const lastWordIdx = answerText.indexOf(lastQWord, qEndIdx);
+                        if (lastWordIdx !== -1) {
+                            answerText = answerText.substring(lastWordIdx + lastQWord.length).trim();
+                        }
+                    }
+                }
+
+                // Clean up: remove page-related artifacts
+                answerText = answerText.replace(/Sayfa \d+ \/ \d+/g, '').trim();
+                answerText = answerText.replace(/- Analiz Raporu \(devam\)/g, '').trim();
+                // Remove program name repeated from continuation headers
+                if (programName && answerText.includes(programName)) {
+                    answerText = answerText.replace(new RegExp(programName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*', 'g'), '').trim();
+                }
+
+                answers[i] = answerText;
+            }
+
+            // Validate: at least name or some answers should exist
+            const hasContent = answers.some(a => a.length > 0);
+            if (!hasContent && programName === 'PDF\'den Yuklenen Program') {
+                return null;
+            }
+
+            // Set first two answers to name and country (matching the question order)
+            // Question 0 = Program name, Question 1 = Country
+            if (answers[0] === '' || answers[0] === programName) {
+                answers[0] = programName;
+            }
+            if (answers[1] === '' || answers[1] === country) {
+                answers[1] = country;
+            }
+
+            return {
+                name: programName,
+                country: country,
+                answers: answers
+            };
         }
 
         // Keyboard Navigation
