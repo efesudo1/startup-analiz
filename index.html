@@ -8,7 +8,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
     <!-- Türkçe karakterler için ASCII dönüşümü kullanılıyor (jsPDF font sınırlaması) -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
         rel="stylesheet">
@@ -172,6 +172,86 @@
         ::-webkit-scrollbar-thumb:hover {
             background: #94a3b8;
         }
+
+        /* Modal Styles */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(4px);
+            z-index: 100;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 1.5rem;
+            max-width: 700px;
+            width: 95%;
+            max-height: 85vh;
+            overflow-y: auto;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            animation: slideUp 0.3s ease;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(40px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .checkbox-item {
+            transition: all 0.2s ease;
+        }
+
+        .checkbox-item:hover {
+            background-color: #f1f5f9;
+        }
+
+        .checkbox-item input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            accent-color: #6366f1;
+            cursor: pointer;
+        }
+
+        /* Upload area styles */
+        .upload-zone {
+            border: 2px dashed #cbd5e1;
+            border-radius: 1rem;
+            padding: 2rem;
+            text-align: center;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            position: relative;
+        }
+
+        .upload-zone:hover,
+        .upload-zone.drag-over {
+            border-color: #6366f1;
+            background: #eef2ff;
+        }
+
+        .upload-zone.file-loaded {
+            border-color: #10b981;
+            background: #ecfdf5;
+        }
+
+        .upload-zone input[type="file"] {
+            position: absolute;
+            inset: 0;
+            opacity: 0;
+            cursor: pointer;
+        }
     </style>
 </head>
 
@@ -251,6 +331,72 @@
                         <span class="block text-sm text-slate-500">Sıfırla</span>
                     </div>
                 </button>
+            </div>
+
+            <!-- Excel Merge Section -->
+            <div class="glass-effect rounded-2xl card-shadow overflow-hidden mb-10">
+                <div class="p-6 border-b border-slate-200 bg-gradient-to-r from-emerald-50 to-teal-50">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 bg-emerald-100 rounded-xl flex items-center justify-center">
+                            <svg class="w-6 h-6 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                            </svg>
+                        </div>
+                        <div>
+                            <h2 class="text-lg font-bold text-slate-800">Excel Dosyalarını Birleştir</h2>
+                            <p class="text-slate-500 text-sm">İki Excel dosyasını yükleyip aynı başlıklara sahipse
+                                birleştirin</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="p-6">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                        <div>
+                            <label class="block text-sm font-semibold text-slate-700 mb-2">1. Excel Dosyası</label>
+                            <div class="upload-zone" id="uploadZone1">
+                                <input type="file" accept=".xlsx,.xls" onchange="handleFileUpload(1, event)"
+                                    id="fileInput1">
+                                <div id="uploadContent1">
+                                    <svg class="w-10 h-10 text-slate-400 mx-auto mb-2" fill="none" stroke="currentColor"
+                                        viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                                    </svg>
+                                    <p class="text-sm text-slate-600 font-medium">Dosya seçin veya sürükleyin</p>
+                                    <p class="text-xs text-slate-400 mt-1">.xlsx veya .xls</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-semibold text-slate-700 mb-2">2. Excel Dosyası</label>
+                            <div class="upload-zone" id="uploadZone2">
+                                <input type="file" accept=".xlsx,.xls" onchange="handleFileUpload(2, event)"
+                                    id="fileInput2">
+                                <div id="uploadContent2">
+                                    <svg class="w-10 h-10 text-slate-400 mx-auto mb-2" fill="none" stroke="currentColor"
+                                        viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                                    </svg>
+                                    <p class="text-sm text-slate-600 font-medium">Dosya seçin veya sürükleyin</p>
+                                    <p class="text-xs text-slate-400 mt-1">.xlsx veya .xls</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex justify-center">
+                        <button onclick="mergeExcelFiles()" id="mergeBtn"
+                            class="px-8 py-3 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white rounded-xl font-semibold flex items-center gap-3 transition-all hover:shadow-lg hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0"
+                            disabled>
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                            </svg>
+                            Birleştir ve İndir
+                        </button>
+                    </div>
+                </div>
             </div>
 
             <!-- Programs Table -->
@@ -854,60 +1000,355 @@
 
         function exportAllExcel() {
             if (programs.length === 0) {
-                showToast('Indirilecek program bulunamadi!', 'error');
+                showToast('İndirilecek program bulunamadı!', 'error');
+                return;
+            }
+            showExcelExportModal();
+        }
+
+        function showExcelExportModal() {
+            const modal = document.createElement('div');
+            modal.className = 'modal-overlay';
+            modal.id = 'excelExportModal';
+
+            const questionCheckboxes = questions.map((q, i) => `
+                <label class="checkbox-item flex items-start gap-3 p-3 rounded-lg cursor-pointer">
+                    <input type="checkbox" checked data-question-index="${i}" class="mt-0.5 flex-shrink-0">
+                    <span class="text-sm text-slate-700">${i + 1}. ${escapeHtml(q)}</span>
+                </label>
+            `).join('');
+
+            const programCheckboxes = programs.map((p, i) => `
+                <label class="checkbox-item flex items-center gap-3 p-3 rounded-lg cursor-pointer">
+                    <input type="checkbox" checked data-program-index="${i}" class="flex-shrink-0">
+                    <div class="flex-1 min-w-0">
+                        <span class="text-sm font-medium text-slate-800 block truncate">${escapeHtml(p.name)}</span>
+                        <span class="text-xs text-slate-500">${escapeHtml(p.country)} • ${p.date}</span>
+                    </div>
+                </label>
+            `).join('');
+
+            modal.innerHTML = `
+                <div class="modal-content">
+                    <div class="p-6 border-b border-slate-200 bg-gradient-to-r from-emerald-50 to-teal-50 rounded-t-3xl">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-3">
+                                <div class="w-10 h-10 bg-emerald-100 rounded-xl flex items-center justify-center">
+                                    <svg class="w-6 h-6 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                    </svg>
+                                </div>
+                                <div>
+                                    <h3 class="text-lg font-bold text-slate-800">Excel Dışa Aktarım</h3>
+                                    <p class="text-sm text-slate-500">Dahil etmek istediğiniz soruları ve programları seçin</p>
+                                </div>
+                            </div>
+                            <button onclick="closeExcelExportModal()" class="p-2 hover:bg-white/60 rounded-lg transition-colors">
+                                <svg class="w-5 h-5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="p-6">
+                        <!-- Soru Seçimi -->
+                        <div class="mb-6">
+                            <div class="flex items-center justify-between mb-3">
+                                <h4 class="text-sm font-bold text-slate-700 uppercase tracking-wider">Sorular</h4>
+                                <div class="flex gap-2">
+                                    <button onclick="toggleAllCheckboxes('question', true)" class="text-xs px-3 py-1.5 bg-indigo-100 text-indigo-700 rounded-lg font-medium hover:bg-indigo-200 transition-colors">Tümünü Seç</button>
+                                    <button onclick="toggleAllCheckboxes('question', false)" class="text-xs px-3 py-1.5 bg-slate-100 text-slate-600 rounded-lg font-medium hover:bg-slate-200 transition-colors">Seçimi Kaldır</button>
+                                </div>
+                            </div>
+                            <div class="bg-slate-50 rounded-xl p-2 max-h-60 overflow-y-auto space-y-1">
+                                ${questionCheckboxes}
+                            </div>
+                        </div>
+
+                        <!-- Program Seçimi -->
+                        <div class="mb-6">
+                            <div class="flex items-center justify-between mb-3">
+                                <h4 class="text-sm font-bold text-slate-700 uppercase tracking-wider">Programlar</h4>
+                                <div class="flex gap-2">
+                                    <button onclick="toggleAllCheckboxes('program', true)" class="text-xs px-3 py-1.5 bg-indigo-100 text-indigo-700 rounded-lg font-medium hover:bg-indigo-200 transition-colors">Tümünü Seç</button>
+                                    <button onclick="toggleAllCheckboxes('program', false)" class="text-xs px-3 py-1.5 bg-slate-100 text-slate-600 rounded-lg font-medium hover:bg-slate-200 transition-colors">Seçimi Kaldır</button>
+                                </div>
+                            </div>
+                            <div class="bg-slate-50 rounded-xl p-2 max-h-60 overflow-y-auto space-y-1">
+                                ${programCheckboxes}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="p-6 border-t border-slate-200 bg-slate-50 rounded-b-3xl flex justify-end gap-3">
+                        <button onclick="closeExcelExportModal()" class="px-6 py-2.5 bg-white border-2 border-slate-200 text-slate-700 rounded-xl font-medium hover:bg-slate-50 transition-all">İptal</button>
+                        <button onclick="downloadFilteredExcel()" class="px-6 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white rounded-xl font-semibold flex items-center gap-2 transition-all hover:shadow-lg">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                            </svg>
+                            İndir
+                        </button>
+                    </div>
+                </div>
+            `;
+
+            document.body.appendChild(modal);
+
+            // Close on overlay click
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) closeExcelExportModal();
+            });
+        }
+
+        function closeExcelExportModal() {
+            const modal = document.getElementById('excelExportModal');
+            if (modal) modal.remove();
+        }
+
+        function toggleAllCheckboxes(type, checked) {
+            const selector = type === 'question' ? '[data-question-index]' : '[data-program-index]';
+            document.querySelectorAll(`#excelExportModal ${selector}`).forEach(cb => cb.checked = checked);
+        }
+
+        function applyExcelStyles(ws, headerCount, dataRowCount) {
+            const range = XLSX.utils.decode_range(ws['!ref']);
+
+            // Header styles
+            for (let C = range.s.c; C <= range.e.c; ++C) {
+                const cellRef = XLSX.utils.encode_cell({ r: 0, c: C });
+                if (!ws[cellRef]) continue;
+                ws[cellRef].s = {
+                    font: { bold: true, color: { rgb: "FFFFFF" }, sz: 11, name: "Calibri" },
+                    fill: { fgColor: { rgb: "4F46E5" } },
+                    alignment: { wrapText: true, vertical: "center", horizontal: "center" },
+                    border: {
+                        top: { style: "thin", color: { rgb: "3730A3" } },
+                        bottom: { style: "thin", color: { rgb: "3730A3" } },
+                        left: { style: "thin", color: { rgb: "3730A3" } },
+                        right: { style: "thin", color: { rgb: "3730A3" } }
+                    }
+                };
+            }
+
+            // Data rows styles
+            for (let R = 1; R <= range.e.r; ++R) {
+                const isEvenRow = R % 2 === 0;
+                for (let C = range.s.c; C <= range.e.c; ++C) {
+                    const cellRef = XLSX.utils.encode_cell({ r: R, c: C });
+                    if (!ws[cellRef]) {
+                        ws[cellRef] = { v: '', t: 's' };
+                    }
+                    ws[cellRef].s = {
+                        font: { sz: 10, name: "Calibri", color: { rgb: "334155" } },
+                        fill: { fgColor: { rgb: isEvenRow ? "F1F5F9" : "FFFFFF" } },
+                        alignment: { wrapText: true, vertical: "top" },
+                        border: {
+                            top: { style: "thin", color: { rgb: "E2E8F0" } },
+                            bottom: { style: "thin", color: { rgb: "E2E8F0" } },
+                            left: { style: "thin", color: { rgb: "E2E8F0" } },
+                            right: { style: "thin", color: { rgb: "E2E8F0" } }
+                        }
+                    };
+                }
+            }
+
+            // Row heights
+            ws['!rows'] = [{ hpt: 30 }]; // Header row
+            for (let R = 1; R <= range.e.r; ++R) {
+                ws['!rows'].push({ hpt: 22 });
+            }
+        }
+
+        function downloadFilteredExcel() {
+            const modal = document.getElementById('excelExportModal');
+            const selectedQuestions = [];
+            const selectedPrograms = [];
+
+            modal.querySelectorAll('[data-question-index]:checked').forEach(cb => {
+                selectedQuestions.push(parseInt(cb.dataset.questionIndex));
+            });
+            modal.querySelectorAll('[data-program-index]:checked').forEach(cb => {
+                selectedPrograms.push(parseInt(cb.dataset.programIndex));
+            });
+
+            if (selectedQuestions.length === 0 || selectedPrograms.length === 0) {
+                showToast('En az bir soru ve bir program seçmelisiniz!', 'error');
                 return;
             }
 
-            // Prepare data with Turkish character support
-            const headers = ['#', 'Program Adi', 'Ulke', 'Inceleme Tarihi', ...questions.map(q => turkishToAscii(q))];
+            // Build filtered headers
+            const headers = ['#', 'Program Adı', 'Ülke', 'İnceleme Tarihi', ...selectedQuestions.map(i => questions[i])];
 
-            const data = programs.map((program, index) => [
-                index + 1,
-                program.name,
-                program.country,
-                program.date,
-                ...program.answers
-            ]);
+            // Build filtered data
+            const data = selectedPrograms.map((pIdx, rowNum) => {
+                const program = programs[pIdx];
+                return [
+                    rowNum + 1,
+                    program.name,
+                    program.country,
+                    program.date,
+                    ...selectedQuestions.map(qIdx => program.answers[qIdx] || '')
+                ];
+            });
 
-            // Create workbook with UTF-8 support
+            // Create workbook
             const wb = XLSX.utils.book_new();
             wb.Props = {
                 Title: "Startup Program Analizi",
-                Author: "Startup Program Analiz Asistani",
+                Author: "Startup Program Analiz Asistanı",
                 CreatedDate: new Date()
             };
 
             const ws = XLSX.utils.aoa_to_sheet([headers, ...data]);
 
-            // Set column widths
+            // Column widths
             const colWidths = [
-                { wch: 5 },   // #
-                { wch: 35 },  // Program Adi
-                { wch: 20 },  // Ulke
-                { wch: 15 },  // Tarih
-                ...questions.map(() => ({ wch: 50 }))
+                { wch: 5 },
+                { wch: 35 },
+                { wch: 20 },
+                { wch: 15 },
+                ...selectedQuestions.map(() => ({ wch: 50 }))
             ];
             ws['!cols'] = colWidths;
 
-            // Enable text wrapping for better readability
-            const range = XLSX.utils.decode_range(ws['!ref']);
-            for (let R = range.s.r; R <= range.e.r; ++R) {
-                for (let C = range.s.c; C <= range.e.c; ++C) {
-                    const cellRef = XLSX.utils.encode_cell({ r: R, c: C });
-                    if (!ws[cellRef]) continue;
-                    if (!ws[cellRef].s) ws[cellRef].s = {};
-                    ws[cellRef].s.alignment = { wrapText: true, vertical: 'top' };
-                }
-            }
+            // Apply styled formatting
+            applyExcelStyles(ws, headers.length, data.length);
 
             XLSX.utils.book_append_sheet(wb, ws, 'Programlar');
 
-            // Download with UTF-8 encoding
             XLSX.writeFile(wb, `Startup_Programlari_${new Date().toLocaleDateString('tr-TR').replace(/\./g, '-')}.xlsx`, {
                 bookType: 'xlsx',
                 type: 'binary'
             });
-            showToast('Excel dosyasi basariyla indirildi!', 'success');
+
+            closeExcelExportModal();
+            showToast('Excel dosyası başarıyla indirildi!', 'success');
+        }
+
+        // Excel Merge Functions
+        let mergeFile1Data = null;
+        let mergeFile2Data = null;
+
+        function handleFileUpload(fileNum, event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const wb = XLSX.read(data, { type: 'array' });
+                    const wsName = wb.SheetNames[0];
+                    const ws = wb.Sheets[wsName];
+                    const jsonData = XLSX.utils.sheet_to_json(ws, { header: 1 });
+
+                    if (fileNum === 1) {
+                        mergeFile1Data = jsonData;
+                    } else {
+                        mergeFile2Data = jsonData;
+                    }
+
+                    // Update UI
+                    const zone = document.getElementById(`uploadZone${fileNum}`);
+                    zone.classList.add('file-loaded');
+                    const content = document.getElementById(`uploadContent${fileNum}`);
+                    content.innerHTML = `
+                        <svg class="w-10 h-10 text-emerald-500 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                        </svg>
+                        <p class="text-sm text-emerald-700 font-semibold">${escapeHtml(file.name)}</p>
+                        <p class="text-xs text-emerald-500 mt-1">${jsonData.length - 1} satır veri</p>
+                    `;
+
+                    updateMergeButton();
+                    showToast(`${fileNum}. dosya yüklendi!`, 'success');
+                } catch (err) {
+                    showToast('Dosya okunamadı! Geçerli bir Excel dosyası seçin.', 'error');
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        function updateMergeButton() {
+            const btn = document.getElementById('mergeBtn');
+            btn.disabled = !(mergeFile1Data && mergeFile2Data);
+        }
+
+        function mergeExcelFiles() {
+            if (!mergeFile1Data || !mergeFile2Data) {
+                showToast('Lütfen iki dosya da yükleyin!', 'error');
+                return;
+            }
+
+            const headers1 = mergeFile1Data[0] || [];
+            const headers2 = mergeFile2Data[0] || [];
+
+            // Compare headers
+            if (headers1.length !== headers2.length || !headers1.every((h, i) => String(h).trim() === String(headers2[i]).trim())) {
+                showToast('Dosyaların başlıkları eşleşmiyor! Aynı başlıklara sahip dosyalar yükleyin.', 'error');
+                return;
+            }
+
+            // Merge data (headers from first file + data rows from both)
+            const mergedData = [
+                headers1,
+                ...mergeFile1Data.slice(1),
+                ...mergeFile2Data.slice(1)
+            ];
+
+            // Create styled workbook
+            const wb = XLSX.utils.book_new();
+            wb.Props = {
+                Title: "Birleştirilmiş Excel",
+                Author: "Startup Program Analiz Asistanı",
+                CreatedDate: new Date()
+            };
+
+            const ws = XLSX.utils.aoa_to_sheet(mergedData);
+
+            // Auto column widths
+            const colWidths = headers1.map((h, i) => {
+                let maxLen = String(h).length;
+                mergedData.forEach(row => {
+                    if (row[i]) maxLen = Math.max(maxLen, String(row[i]).length);
+                });
+                return { wch: Math.min(Math.max(maxLen + 2, 10), 60) };
+            });
+            ws['!cols'] = colWidths;
+
+            // Apply styles
+            applyExcelStyles(ws, headers1.length, mergedData.length - 1);
+
+            XLSX.utils.book_append_sheet(wb, ws, 'Birleştirilmiş');
+
+            XLSX.writeFile(wb, `Birlestirilmis_Excel_${new Date().toLocaleDateString('tr-TR').replace(/\./g, '-')}.xlsx`, {
+                bookType: 'xlsx',
+                type: 'binary'
+            });
+
+            // Reset
+            mergeFile1Data = null;
+            mergeFile2Data = null;
+            resetUploadZone(1);
+            resetUploadZone(2);
+            updateMergeButton();
+
+            showToast('Dosyalar başarıyla birleştirildi ve indirildi!', 'success');
+        }
+
+        function resetUploadZone(fileNum) {
+            const zone = document.getElementById(`uploadZone${fileNum}`);
+            zone.classList.remove('file-loaded');
+            const content = document.getElementById(`uploadContent${fileNum}`);
+            content.innerHTML = `
+                <svg class="w-10 h-10 text-slate-400 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                </svg>
+                <p class="text-sm text-slate-600 font-medium">Dosya seçin veya sürükleyin</p>
+                <p class="text-xs text-slate-400 mt-1">.xlsx veya .xls</p>
+            `;
+            document.getElementById(`fileInput${fileNum}`).value = '';
         }
 
         // Utility Functions
